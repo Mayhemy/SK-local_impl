@@ -9,13 +9,15 @@ import java.util.Collection;
 
 public class LocalStorage extends StorageSpec {
 
+    private LocalStorageDirectory localStorageDirectory;
+
     @Override
     public void saveConfig(Cfg cfg) {
 
     }
 
     @Override
-    public void createStorage(String s) {
+    public void createStorage(String s)throws FolderNotFoundException{
 
     }
 
