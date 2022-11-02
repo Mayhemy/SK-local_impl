@@ -3,6 +3,7 @@ package Local_impl;
 import OperationsAndExtensions.Extensions;
 import Storage.StorageAndCfg.Cfg;
 
+import java.io.File;
 import java.util.List;
 
 public class LocalStorageDirectory {
@@ -14,6 +15,20 @@ public class LocalStorageDirectory {
     private String downloadFolder;
     private boolean fileSizeSet;
     private boolean maxNumberOfFilesSet;
+
+    public LocalStorageDirectory(String path) {
+
+        File folder = new File(path);
+        if(!folder.exists()){
+            folder.mkdir();
+        }
+        File downloadFolder = new File("C:\\DownloadFolderSK");
+        if(!downloadFolder.exists()){
+            downloadFolder.mkdirs();
+        }
+        this.root = path;
+
+    }
 
     public String getRoot() {
         return root;
