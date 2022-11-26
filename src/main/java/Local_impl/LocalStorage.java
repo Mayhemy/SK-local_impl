@@ -47,8 +47,8 @@ public class LocalStorage extends StorageSpec {
     }
 
     @Override
-    public void createStorage(String s) throws FolderNotFoundException{
-        File fileToCreate = new File(s);
+    public void createStorage(String s,String s1) throws FolderNotFoundException{
+        File fileToCreate = new File(s+"/"+s1);
         File[] filesInFile = fileToCreate.listFiles();
         boolean exists = false;
         if(filesInFile != null) {
@@ -59,7 +59,7 @@ public class LocalStorage extends StorageSpec {
             }
         }
         if(!exists){
-            File folder = new File(s);
+            File folder = new File(s+"/"+s1);
             if(!folder.exists()){
                 folder.mkdir();
             }
@@ -67,7 +67,7 @@ public class LocalStorage extends StorageSpec {
             if(!downloadFolder.exists()){
                 downloadFolder.mkdirs();
             }
-            super.setPathToStorage(s);
+            super.setPathToStorage(s+"/"+s1);
             System.out.println("Napravljen storage");
             System.out.println(super.getPathToStorage());
         }else{
@@ -76,8 +76,8 @@ public class LocalStorage extends StorageSpec {
     }
 
     @Override
-    public void createStorage(String s, String s1) throws FileNotFoundException {
-        File fileToCreate = new File(s);
+    public void createStorage(String s,String z, String s1) throws FileNotFoundException {
+        File fileToCreate = new File(s+"/"+z);
         File[] filesInFile = fileToCreate.listFiles();
         boolean exists = false;
         if(filesInFile!= null) {
@@ -88,7 +88,7 @@ public class LocalStorage extends StorageSpec {
             }
         }
         if(!exists){
-            File folder = new File(s);
+            File folder = new File(s+"/"+z);
             if(!folder.exists()){
                 folder.mkdir();
             }
@@ -96,7 +96,7 @@ public class LocalStorage extends StorageSpec {
             if(!downloadFolder.exists()){
                 downloadFolder.mkdirs();
             }
-            super.setPathToStorage(s);
+            super.setPathToStorage(s+"/"+z);
             File cfg = new File(s1);
             if(cfg.exists() && cfg.isFile()) {
                 Cfg.getInstance().loadCfg(s1);
@@ -117,6 +117,7 @@ public class LocalStorage extends StorageSpec {
             fullFolderPath = super.getPathToStorage();
         }
         File directory = new File(fullFolderPath);
+        System.out.println(fullFolderPath);
         if(!directory.isDirectory()){
             throw new FolderNotFoundException();
         }
@@ -141,8 +142,11 @@ public class LocalStorage extends StorageSpec {
     }
 
     @Override
-    public void loadFiles(String s,String s1,String... strings) throws FileNotFoundException, MaxStorageSizeException, MaxNumberOfFilesExceededException, UnsupportedOperationException {
+    public void loadFiles(String s,String... strings) throws FileNotFoundException, MaxStorageSizeException, MaxNumberOfFilesExceededException, UnsupportedOperationException {
         String fullPath;
+        if(super.getCfg()==null){
+            return;
+        }
         if(!s.isEmpty()) {
             fullPath = super.getPathToStorage() + "/" + s;
         }else{
@@ -150,18 +154,11 @@ public class LocalStorage extends StorageSpec {
         }
         File file= new File(fullPath);
         if(!file.exists()){
-            System.out.println("TU SMO1");
-            System.out.println(fullPath);
-            throw new FileNotFoundException();
-        }
-        File file1 = new File(s1);
-        if(!file1.exists()){
-            System.out.println("TU SMO");
             throw new FileNotFoundException();
         }
         long size = 0;
         for(String filePath : strings){
-            File checker = new File(s1+filePath);
+            File checker = new File(filePath);
             if(!checker.exists()){
                 throw new FileNotFoundException();
             }
@@ -183,7 +180,9 @@ public class LocalStorage extends StorageSpec {
         }
 
         for(String filePath : strings){
-            copyFolder(new File(s1+"/"+filePath), new File(fullPath + "/" + filePath));
+            String [] arrayForFileName = filePath.split("/");
+            System.out.println(arrayForFileName[arrayForFileName.length-1]);
+            copyFolder(new File(filePath), new File(fullPath + "/" + arrayForFileName[arrayForFileName.length-1]));
         }
     }
     public static long folderSize(File directory) {
@@ -303,6 +302,9 @@ public class LocalStorage extends StorageSpec {
         try {
             long fileSize = Files.size(pathToFile);
             int numberOfFiles = 0;
+            if(super.getCfg()==null){
+                return;
+            }
             if(fileSize + folderSize(folderPath) > super.getCfg().getFileSize()){
                 throw new MaxStorageSizeException();
             }
@@ -310,13 +312,13 @@ public class LocalStorage extends StorageSpec {
                 numberOfFiles = folderPath.listFiles().length;
             }
             if(numberOfFiles + 1 > super.getCfg().getFileSize()){
-                throw new MaxStorageSizeException();
+                throw new MaxNumberOfFilesExceededException();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         try {
-            String [] arrayForFileName = s.split("\\\\");
+            String [] arrayForFileName = s.split("/");
             Files.move(pathToFile, Paths.get(folderPath.getPath() +"/" + arrayForFileName[arrayForFileName.length-1]), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             e.printStackTrace();
@@ -380,6 +382,9 @@ public class LocalStorage extends StorageSpec {
                 return !(new File(current, name).isDirectory());
             }
         });
+        if(files.length== 0 ){
+            Arrays.asList(0);
+        }
         return Arrays.asList(files);
     }
 
@@ -425,7 +430,7 @@ public class LocalStorage extends StorageSpec {
     }
 
     @Override
-    public Collection<String> retFilesWithExtension(String dirPath, final Extensions extensions) throws ForbidenExtensionException,FolderNotFoundException {
+    public Collection<String> retFilesWithExtension(String dirPath, final String extensions) throws ForbidenExtensionException,FolderNotFoundException {
         File folder = new File(dirPath);
         if(!folder.isDirectory()){
             throw new FolderNotFoundException();
