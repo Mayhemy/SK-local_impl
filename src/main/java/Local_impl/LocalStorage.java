@@ -1,15 +1,13 @@
 package Local_impl;
 
 import Exceptions.*;
+import Exceptions.FileNotFoundException;
 import OperationsAndExtensions.Extensions;
 import Storage.StorageAndCfg.Cfg;
 import Storage.StorageAndCfg.StorageManager;
 import Storage.StorageAndCfg.StorageSpec;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FilenameFilter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,10 +32,8 @@ public class LocalStorage extends StorageSpec {
 
     @Override
     public void saveConfig(String path) {
-        if(super.getCfg() != null){
-            Cfg.getInstance().loadCfg(path);
-            super.updateCfg(Cfg.getInstance());
-        }
+        Cfg.getInstance().loadCfg(path);
+        super.updateCfg(Cfg.getInstance());
     }
 
     @Override
@@ -47,8 +43,7 @@ public class LocalStorage extends StorageSpec {
         List<String> list = new ArrayList<>();
         list.addAll(Arrays.asList(strings));
         Cfg.getInstance().setForbidenExtensionList(list);
-        updateCfg(Cfg.getInstance());
-
+        super.updateCfg(Cfg.getInstance());
     }
 
     @Override
@@ -56,9 +51,11 @@ public class LocalStorage extends StorageSpec {
         File fileToCreate = new File(s);
         File[] filesInFile = fileToCreate.listFiles();
         boolean exists = false;
-        for(File f : filesInFile){
-            if(f.getName().equalsIgnoreCase("Config.txt")){
-                exists = true;
+        if(filesInFile != null) {
+            for (File f : filesInFile) {
+                if (f.getName().equalsIgnoreCase("Config.txt")) {
+                    exists = true;
+                }
             }
         }
         if(!exists){
@@ -72,6 +69,7 @@ public class LocalStorage extends StorageSpec {
             }
             super.setPathToStorage(s);
             System.out.println("Napravljen storage");
+            System.out.println(super.getPathToStorage());
         }else{
             throw new FolderNotFoundException();
         }
@@ -82,9 +80,11 @@ public class LocalStorage extends StorageSpec {
         File fileToCreate = new File(s);
         File[] filesInFile = fileToCreate.listFiles();
         boolean exists = false;
-        for(File f : filesInFile){
-            if(f.getName().equalsIgnoreCase("Config.txt")){
-                exists = true;
+        if(filesInFile!= null) {
+            for (File f : filesInFile) {
+                if (f.getName().equalsIgnoreCase("Config.txt")) {
+                    exists = true;
+                }
             }
         }
         if(!exists){
@@ -98,8 +98,9 @@ public class LocalStorage extends StorageSpec {
             }
             super.setPathToStorage(s);
             File cfg = new File(s1);
-            if(cfg.exists() && !cfg.isFile()) {
+            if(cfg.exists() && cfg.isFile()) {
                 Cfg.getInstance().loadCfg(s1);
+                super.updateCfg(Cfg.getInstance());
             }else{
                 throw new FileNotFoundException();
             }
@@ -109,19 +110,27 @@ public class LocalStorage extends StorageSpec {
 
     @Override
     public void createDirectories(String s, String... strings) throws FolderNotFoundException, UnsupportedOperationException {
-        String fullFolderPath = super.getPathToStorage() + "/" + s;
+        String fullFolderPath;
+        if(!s.isEmpty()){
+            fullFolderPath = super.getPathToStorage() + "/" + s;
+        }else{
+            fullFolderPath = super.getPathToStorage();
+        }
         File directory = new File(fullFolderPath);
         if(!directory.isDirectory()){
             throw new FolderNotFoundException();
         }
         String[] files = directory.list();
-        List<String> listOfFiles = Arrays.asList(files);
+        List<String> listOfFiles = new ArrayList<>();
+        if(files != null) {
+            listOfFiles.addAll(Arrays.asList(files));
+        }
 
         for(String path : strings) {
             if(!listOfFiles.contains(path)) {
                 new File(fullFolderPath+"/"+path).mkdirs();
             }else{
-                //treba dodati exception da fajl sa tim nazivom vec postoji
+                //treba dodati exception da fajl sa tim nazivom vec postoji ali i ne mora ako je copy and replace
             }
         }
     }
@@ -132,55 +141,120 @@ public class LocalStorage extends StorageSpec {
     }
 
     @Override
-    public void loadFiles(String s,String... strings) throws FileNotFoundException, MaxStorageSizeException, MaxNumberOfFilesExceededException, UnsupportedOperationException {
-        String fullPath = super.getPathToStorage() + "/"+ s;
+    public void loadFiles(String s,String s1,String... strings) throws FileNotFoundException, MaxStorageSizeException, MaxNumberOfFilesExceededException, UnsupportedOperationException {
+        String fullPath;
+        if(!s.isEmpty()) {
+            fullPath = super.getPathToStorage() + "/" + s;
+        }else{
+            fullPath = super.getPathToStorage();
+        }
         File file= new File(fullPath);
         if(!file.exists()){
+            System.out.println("TU SMO1");
+            System.out.println(fullPath);
             throw new FileNotFoundException();
         }
-        Path path = Paths.get(fullPath);
+        File file1 = new File(s1);
+        if(!file1.exists()){
+            System.out.println("TU SMO");
+            throw new FileNotFoundException();
+        }
         long size = 0;
-        try {
-            int numberOfFiles = 0;
-            size = Files.size(path);
-            if(file.listFiles() != null) {
-                numberOfFiles = file.listFiles().length;
+        for(String filePath : strings){
+            File checker = new File(s1+filePath);
+            if(!checker.exists()){
+                throw new FileNotFoundException();
             }
-            if(strings.length + numberOfFiles > super.getCfg().getMaxNumberOfFiles()){// da li se number of files racuna za ceo storage ili pojedinacno za foldere
-                throw new MaxNumberOfFilesExceededException();
+            if(checker.isDirectory()){
+                size += folderSize(checker);
+            }else{
+                size += checker.length();
             }
-            if( size + getFolderSize(new File(super.getPathToStorage())) > super.getCfg().getFileSize()){ //da li se size racuna za ceo storage ili svaki folder pojedinacno
-                throw new MaxStorageSizeException();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        }
+        int numberOfFiles = 0;
+        if(file.listFiles() != null) {
+            numberOfFiles = file.listFiles().length;
+        }
+        if(strings.length + numberOfFiles > super.getCfg().getMaxNumberOfFiles()){// da li se number of files racuna za ceo storage ili pojedinacno za foldere
+            throw new MaxNumberOfFilesExceededException();
+        }
+        if( size + new File(super.getPathToStorage()).length() > super.getCfg().getFileSize()){ //da li se size racuna za ceo storage ili svaki folder pojedinacno
+            throw new MaxStorageSizeException();
         }
 
         for(String filePath : strings){
-            try {
-                Files.copy(Paths.get(fullPath), Paths.get(super.getPathToStorage() + "/" + filePath), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            copyFolder(new File(s1+"/"+filePath), new File(fullPath + "/" + filePath));
         }
     }
-    private long getFolderSize(File folder) {
+    public static long folderSize(File directory) {
         long length = 0;
-        File[] files = folder.listFiles();
-
-        int count = files.length;
-
-        for (int i = 0; i < count; i++) {
-            if (files[i].isFile()) {
-                length += files[i].length();
-            }
-            else {
-                length += getFolderSize(files[i]);
-            }
+        for (File file : directory.listFiles()) {
+            if (file.isFile())
+                length += file.length();
+            else
+                length += folderSize(file);
         }
         return length;
     }
+    public static void copyFolder(File source, File destination)
+    {
+        if (source.isDirectory())
+        {
+            if (!destination.exists())
+            {
+                destination.mkdirs();
+            }
 
+            String files[] = source.list();
+
+            for (String file : files)
+            {
+                File srcFile = new File(source, file);
+                File destFile = new File(destination, file);
+
+                copyFolder(srcFile, destFile);
+            }
+        }
+        else
+        {
+            InputStream in = null;
+            OutputStream out = null;
+
+            try
+            {
+                in = new FileInputStream(source);
+                out = new FileOutputStream(destination);
+
+                byte[] buffer = new byte[1024];
+
+                int length;
+                while ((length = in.read(buffer)) > 0)
+                {
+                    out.write(buffer, 0, length);
+                }
+            }
+            catch (Exception e)
+            {
+                try
+                {
+                    in.close();
+                }
+                catch (IOException e1)
+                {
+                    e1.printStackTrace();
+                }
+
+                try
+                {
+                    out.close();
+                }
+                catch (IOException e1)
+                {
+                    e1.printStackTrace();
+                }
+            }
+        }
+    }
     @Override
     public void deleteFiles(String... strings) throws FileNotFoundException, UnsupportedOperationException {
         for(String path : strings) {
@@ -201,8 +275,17 @@ public class LocalStorage extends StorageSpec {
             if (!folderToDel.exists() && !folderToDel.isDirectory()) {
                 throw new FolderNotFoundException();
             }
-            folderToDel.delete();
+            deleteDir(folderToDel);
         }
+    }
+    void deleteDir(File file) {
+        File[] contents = file.listFiles();
+        if (contents != null) {
+            for (File f : contents) {
+                deleteDir(f);
+            }
+        }
+        file.delete();
     }
 
     @Override
@@ -220,7 +303,7 @@ public class LocalStorage extends StorageSpec {
         try {
             long fileSize = Files.size(pathToFile);
             int numberOfFiles = 0;
-            if(fileSize + getFolderSize(new File(super.getPathToStorage()))  > super.getCfg().getFileSize()){
+            if(fileSize + folderSize(folderPath) > super.getCfg().getFileSize()){
                 throw new MaxStorageSizeException();
             }
             if(folderPath.listFiles()!= null){
@@ -233,7 +316,8 @@ public class LocalStorage extends StorageSpec {
             e.printStackTrace();
         }
         try {
-            Files.move(pathToFile, Paths.get(folderPath.getPath()), StandardCopyOption.REPLACE_EXISTING);
+            String [] arrayForFileName = s.split("\\\\");
+            Files.move(pathToFile, Paths.get(folderPath.getPath() +"/" + arrayForFileName[arrayForFileName.length-1]), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -246,15 +330,19 @@ public class LocalStorage extends StorageSpec {
         if(!fileToDownload.exists()){
             throw new FileNotFoundException();
         }
-        File folderToDownloadInto = new File(super.getPathToStorage() + "/" + s1);
+        if(s1.isEmpty()){
+            s1 = "C:\\DownloadFolderSK";
+        }
+        File folderToDownloadInto = new File(s1);
         if(!folderToDownloadInto.exists() || !folderToDownloadInto.isDirectory()){
             throw new FolderNotFoundException();
         }
         try {
-            moveFile(fileToDownload.getPath(), folderToDownloadInto.getPath());
-        } catch (MaxStorageSizeException e) {
-            e.printStackTrace();
-        } catch (MaxNumberOfFilesExceededException e) {
+            String [] arrayForFileName = s.split("/");
+            System.out.println(folderToDownloadInto.getPath()+ "/" + arrayForFileName[arrayForFileName.length-1]);
+            System.out.println(arrayForFileName[arrayForFileName.length-1]);
+            Files.move(Paths.get(fileToDownload.getPath()), Paths.get(folderToDownloadInto.getPath()+ "/" + arrayForFileName[arrayForFileName.length-1]),StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
